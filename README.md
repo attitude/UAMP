@@ -1,7 +1,7 @@
 UAMP
 ====
 
-***Universal Analytics Measument Protocol v1 Component in PHP***
+***Universal Analytics Measurement Protocol v1 Component in PHP***
 
 Server-side implementation [Universal Analytics Measurement Protocol](https://developers.google.com/analytics/devguides/collection/protocol/v1/) according documentation in PHP.
 
@@ -14,7 +14,7 @@ v0.1.0 – Proof of concept
 
 ### Usage
 
-Easiest way to use the UAMP is by constructing a **hit** and then post it using the **connection**. As more than one hits can occur during one server request a **CID** serves as a glue to tie then together. You can use static method `UAMPv1_Connection::getUUID()` to generate one. You can also Extract UUID from UA cookie and use it.
+Easiest way to use the UAMP is by constructing a **hit** and then post it using the **connection**. As more than one hits can occur during one server request a **CID** serves as a glue to tie them together. You can use static method `UAMPv1_Connection::getUUID()` to generate one. You can also Extract UUID from UA cookie and use it.
 
 #### Example:
 
