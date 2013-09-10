@@ -17,7 +17,6 @@ namespace attitude\UAMPv1;
  * @link    https://developers.google.com/analytics/devguides/collection/protocol/v1/reference
  * @link    https://developers.google.com/analytics/devguides/collection/protocol/v1/parameters
  *
- * @todo    Calculate `Queue Time` offset (useful for batch processing)
  * @todo    Apply max width to text fields
  *
  */
@@ -50,7 +49,7 @@ class Hit
         'visitor',
         'session',
         'traffic_sources',
-        'system',
+        'system_info',
         'hit',
         'content_information',
         'app_tracking',
@@ -72,7 +71,13 @@ class Hit
      * @var string  Microtimestamp when the hit occured
      *
      */
-    private $hit_microtime = null;
+    private $microtime = null;
+
+    /**
+     * @var string  Remote IP address
+     *
+     */
+    private $remote_addr = null;
 
     /**
      * @var array   General parameters group
@@ -150,7 +155,7 @@ class Hit
      * @var array   System parameters group
      *
      */
-    private $system = array(
+    private $system_info = array(
         // Screen Resolution
         'sr' => null,
 
@@ -356,22 +361,15 @@ class Hit
      * @returns object  Returns `$this`
      *
      */
-    public function __construct(array $args=array(), $user_agent = null, $hit_microtime = null)
+    public function __construct(array $args=array())
     {
-        if (empty($user_agent)) {
-            $user_agent =& $_SERVER['HTTP_USER_AGENT'];
-        }
-
-        if (empty($hit_microtime)) {
-            $hit_microtime = microtime();
-        }
-
-        $this->user_agent    =& $user_agent;
-        $this->hit_microtime =  $hit_microtime;
-
         foreach ($args as $k => $v) {
             $this->__set($k, $v);
         }
+
+        $this->setMicroTime();
+        $this->setUserAgent();
+        $this->setRemoteAddr();
 
         return $this;
     }
@@ -423,9 +421,17 @@ class Hit
      * @returns string  URL encoded payload string
      *
      */
-    public function build()
+    public function build($as_array = false)
     {
-        $query = array();
+        $now = explode(' ', microtime());
+        $now = array('s' => $now[1], 'ms' => $now[0]);
+
+        // Calculate Queue Time offset
+        if ($this->microtime['s'] < $now['s']) {
+            $this->setQT(floor(($now['s']+$now['ms'] - $this->microtime['s']-$this->microtime['ms']) * 1000));
+        }
+
+        $query = array('v' => 1);
 
         foreach ($this->GROUPS as &$group) {
             foreach ($this->$group as $k => &$v) {
@@ -451,7 +457,7 @@ class Hit
             }
         }
 
-        return 'v=1&'.http_build_query($query);
+        return $as_array ? $query : http_build_query($query);
     }
 
     /**
@@ -464,6 +470,102 @@ class Hit
     public function getUserAgent()
     {
         return $this->user_agent;
+    }
+
+    /**
+     * Sets User Agent string
+     *
+     * @param   string  $user_agent
+     * @return  object  Returns `$this` (chainable)
+     *
+     */
+    public function setUserAgent($user_agent = null)
+    {
+        if (empty($user_agent)) {
+            if (isset($_SERVER['SHELL'])) {
+                $user_agent = 'Shell script (localhost)';
+            } else {
+                $user_agent =& $_SERVER['HTTP_USER_AGENT'];
+            }
+        }
+
+        if (!is_string($user_agent)) {
+            throw new \Exception('User Agent must be a string.');
+        }
+
+        $this->user_agent = $user_agent;
+
+        return $this;
+    }
+
+    /**
+     * Sets microtime
+     *
+     * @param   string  $microtime
+     * @return  object  Returns `$this` (chainable)
+     *
+     */
+    public function setMicroTime($microtime = null)
+    {
+        if (empty($microtime)) {
+            $microtime = explode(' ', microtime());
+            $microtime = array('s' => $microtime[1], 'ms' => $microtime[0]);
+        } else {
+            // Transfrom UNIX timestamp to microtime
+            if (is_int($microtime)) {
+                $microtime = array('s' => $microtime, 'ms' => 0);
+            }
+        }
+
+        $this->microtime = $microtime;
+
+        return $this;
+    }
+
+    /**
+     * Returns set microtime array
+     *
+     * @param   void
+     * @returns array
+     *
+     */
+    public function getMicroTime()
+    {
+        return $this->microtime;
+    }
+
+    /**
+     * Sets remote IP address
+     *
+     * @param   string  $remote_addr
+     * @return  object  Returns `$this` (chainable)
+     *
+     */
+    public function setRemoteAddr($remote_addr=null)
+    {
+        if (empty($remote_addr)) {
+            $remote_addr = $_SERVER['REMOTE_ADDR'];
+        }
+
+        if ($remote_addr==='127.0.0.1') {
+            throw new \Exception('Skipping requests on localhost');
+        }
+
+        $this->remote_addr = $remote_addr;
+
+        return $this;
+    }
+
+    /**
+     * Returns set remote IP address
+     *
+     * @param   void
+     * @returns string
+     *
+     */
+    public function getRemoteAddr()
+    {
+        return $this->remote_addr;
     }
 
     /**
