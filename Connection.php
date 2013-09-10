@@ -76,12 +76,22 @@ class Connection
         );
     }
 
-    public function post(UAMPv1_Hit $hit)
+    /**
+     * Posts a hit to Google Analytics
+     *
+     * @param   attitude\UAMPv1\Hit $hit
+     * @returns object              Returns `$this` (chainable)
+     *
+     */
+    public function post(Hit $hit)
     {
         try {
             $ch = curl_init(self::COLLECT_URL);
 
             $payload_data = $hit->build();
+
+            // Uncomment to display what cURL sends and receives
+//             curl_setopt($ch, CURLOPT_VERBOSE, true);
 
             curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'POST');
             curl_setopt($ch, CURLOPT_POSTFIELDS, $payload_data);
@@ -91,18 +101,23 @@ class Connection
 
             curl_setopt($ch, CURLOPT_USERAGENT, $hit->getUserAgent());
 
-            $response = curl_exec($ch);
+            curl_setopt($ch, CURLOPT_HTTPHEADER, array(
+                'REMOTE_ADDR: '.$hit->getRemoteAddr(),
+                'HTTP_X_FORWARDED_FOR: '.$hit->getRemoteAddr(),
+                'HTTP_X_REAL_IP: '.$hit->getRemoteAddr()
+            ));
 
-            $info = curl_getinfo($ch);
+            $response = curl_exec($ch);
 
             curl_close($ch);
 
             if ($info['http_code'] < 200 || $info['http_code'] >= 300) {
                 trigger_error('POST of hit failed with HTTP code `'.$info['http_code'].'`', E_USER_WARNING);
             }
-//             print_r($info);
         } catch (Exception $e) {
             trigger_error($e->getMessage(), E_USER_WARNING);
         }
+
+        return $this;
     }
 }
