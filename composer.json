@@ -1,0 +1,8 @@
+{
+    "name": "attitude/UAMPv1",
+    "autoload": {
+        "psr-0": {
+            "attitude\\UAMPv1\\": ""
+        }
+    }
+}
